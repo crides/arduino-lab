@@ -1,23 +1,53 @@
 #define F_CPU 16000000
 
+#include <stdio.h>
 #include <stdint.h>
 #include <avr/io.h>
 #include <util/delay.h>
 
-void usart_init(unsigned int baud) {
-    uint16_t ubrr = F_CPU / 16 / baud - 1;
-    /*Set baud rate */
-    UBRR0H = (unsigned char)(baud>>8);
-    UBRR0L = (unsigned char)baud;
-    /* Enable receiver and transmitter */
-    UCSR0B = (1<<RXEN0)|(1<<TXEN0);
-    /* Set frame format: 8data, 2stop bit */
-    UCSR0C = (1<<USBS0)|(3<<UCSZ00);
+static int _usart_putc(char c, FILE *f);
+static FILE mystdout = FDEV_SETUP_STREAM(_usart_putc, NULL, _FDEV_SETUP_WRITE);
+
+void usart_init() {
+    // Enable receiver and transmitter
+    UCSR0A = _BV(U2X0);
+    UCSR0B = _BV(RXEN0) | _BV(TXEN0);
+    // 8 data bits, 1 stop bit, no parity bits
+    UCSR0C = _BV(USBS0) | _BV(UCSZ01) | _BV(UCSZ00);
+    // Set 9600 baud rate
+    UBRR0H = 0;
+    UBRR0L = 207;
+
+    stdout = &mystdout;
+}
+
+void usart_putc(uint8_t c) {
+    while (!(UCSR0A & _BV(UDRE0)));
+    UDR0 = c;
+}
+
+static int _usart_putc(char c, FILE *f) {
+    usart_putc(c);
+    return 0;
 }
 
 void io_init() {
     DDRD = _BV(DDD4) | _BV(DDD5) | _BV(DDD6) | _BV(DDD7);
     DDRB = _BV(DDB0) | _BV(DDB1) | _BV(DDB3);
+}
+
+void adc_init() {
+    ADMUX = _BV(REFS0);
+    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
+    ADCSRB = 0;
+}
+
+uint16_t adc_read() {
+    ADCSRA |= _BV(ADSC);
+    while (!(ADCSRA & _BV(ADIF)));
+    uint8_t low = ADCL;
+    uint8_t high = ADCH;
+    return high << 8 | low;
 }
 
 #define SERVO_MAX 4800  // Values took from Arduino Servo library
@@ -43,8 +73,8 @@ void servo_write1(uint8_t _val) {
     }
     uint16_t val = _val;
     uint16_t oc = (SERVO_MAX - SERVO_MIN) / 180 * val + SERVO_MIN;
-    OCR1AH = (oc >> 8) & 0xFF;
-    OCR1AL = (oc) & 0xFF;
+    OCR1AH = oc >> 8;
+    OCR1AL = oc;
 }
 
 void servo_write2(uint8_t _val) {
@@ -53,30 +83,24 @@ void servo_write2(uint8_t _val) {
     }
     uint16_t val = _val;
     uint16_t oc = (SERVO_MAX - SERVO_MIN) / 180 * val + SERVO_MIN;
-    OCR1BH = (oc >> 8) & 0xFF;
-    OCR1BL = (oc) & 0xFF;
+    OCR1BH = oc >> 8;
+    OCR1BL = oc;
 }
 
 int main() {
     io_init();
-    servo_init();
-    /* usart_init(9600); */
+    adc_init();
+    /* servo_init(); */
+    usart_init();
+    printf("asdf\n");
+
+    _delay_ms(200);
     for (;;) {
-        int16_t i;
-        for (i = 0; i <= 180; i ++) {
-            servo_write1(i);
-            _delay_ms(20);
-        }
-        _delay_ms(3000);
-        for (i = 180; i >= 0; i --) {
-            servo_write1(i);
-            _delay_ms(20);
-        }
-        _delay_ms(3000);
+        ADMUX = (ADMUX & 0xF0) | 0x01;
+        uint16_t x = adc_read();
+        ADMUX = (ADMUX & 0xF0) | 0x00;
+        uint16_t y = adc_read();
+        printf("x: %hu, y: %hu\n", x, y);
+        _delay_ms(200);
     }
-    /* _delay_ms(200); */
-    /* for (;;) { */
-    /*     PIND = _BV(PIND4) | _BV(PIND6); */
-    /*     _delay_ms(500); */
-    /* } */
 }
