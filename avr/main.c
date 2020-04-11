@@ -3,8 +3,14 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
 
+#include "i2c.h"
+#include "oled.h"
+
+/* static int _oled_putc(char c, FILE *f); */
+/* static FILE mystdout = FDEV_SETUP_STREAM(_oled_putc, NULL, _FDEV_SETUP_WRITE); */
 static int _usart_putc(char c, FILE *f);
 static FILE mystdout = FDEV_SETUP_STREAM(_usart_putc, NULL, _FDEV_SETUP_WRITE);
 
@@ -17,8 +23,6 @@ void usart_init() {
     // Set 9600 baud rate
     UBRR0H = 0;
     UBRR0L = 207;
-
-    stdout = &mystdout;
 }
 
 void usart_putc(uint8_t c) {
@@ -28,6 +32,11 @@ void usart_putc(uint8_t c) {
 
 static int _usart_putc(char c, FILE *f) {
     usart_putc(c);
+    return 0;
+}
+
+static int _oled_putc(char c, FILE *f) {
+    oled_putc(c);
     return 0;
 }
 
@@ -88,19 +97,31 @@ void servo_write2(uint8_t _val) {
 }
 
 int main() {
+    sei();
     io_init();
-    adc_init();
+    /* adc_init(); */
     /* servo_init(); */
+    stdout = &mystdout;
     usart_init();
-    printf("asdf\n");
-
+    i2c_init();
+    oled_init();
     _delay_ms(200);
-    for (;;) {
-        ADMUX = (ADMUX & 0xF0) | 0x01;
-        uint16_t x = adc_read();
-        ADMUX = (ADMUX & 0xF0) | 0x00;
-        uint16_t y = adc_read();
-        printf("x: %hu, y: %hu\n", x, y);
-        _delay_ms(200);
-    }
+    oled_clear();
+    oled_pos(7, 3);
+    oled_putc('c');
+    oled_putc('u');
+    oled_putc('l');
+    oled_putc('a');
+    oled_putc('t');
+    oled_putc('e');
+    oled_putc('r');
+    while (1);
+    /* for (;;) { */
+    /*     ADMUX = (ADMUX & 0xF0) | 0x01; */
+    /*     uint16_t x = adc_read(); */
+    /*     ADMUX = (ADMUX & 0xF0) | 0x00; */
+    /*     uint16_t y = adc_read(); */
+    /*     /1* printf("x: %hu, y: %hu\n", x, y); *1/ */
+    /*     _delay_ms(200); */
+    /* } */
 }
