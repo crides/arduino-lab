@@ -29,7 +29,7 @@ void setup() {
     }
     delay(200);
     display.clearDisplay();
-    display.setTextSize(2); // Draw 2X-scale text
+    display.setTextSize(1); // Draw 2X-scale text
     display.setTextColor(SSD1306_WHITE);
 }
 
