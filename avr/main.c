@@ -9,10 +9,10 @@
 #include "i2c.h"
 #include "oled.h"
 
-/* static int _oled_putc(char c, FILE *f); */
-/* static FILE mystdout = FDEV_SETUP_STREAM(_oled_putc, NULL, _FDEV_SETUP_WRITE); */
+static int _oled_putc(char c, FILE *f);
 static int _usart_putc(char c, FILE *f);
-static FILE mystdout = FDEV_SETUP_STREAM(_usart_putc, NULL, _FDEV_SETUP_WRITE);
+static FILE stdout_oled = FDEV_SETUP_STREAM(_oled_putc, NULL, _FDEV_SETUP_WRITE);
+static FILE stdout_uart = FDEV_SETUP_STREAM(_usart_putc, NULL, _FDEV_SETUP_WRITE);
 
 void usart_init() {
     // Enable receiver and transmitter
@@ -42,7 +42,8 @@ static int _oled_putc(char c, FILE *f) {
 
 void io_init() {
     DDRD = _BV(DDD4) | _BV(DDD5) | _BV(DDD6) | _BV(DDD7);
-    DDRB = _BV(DDB0) | _BV(DDB1) | _BV(DDB3);
+    DDRB = _BV(DDB0) | _BV(DDB1) | _BV(DDB2);
+    PORTD |= _BV(PORTD2) | _BV(PORTD3);
 }
 
 void adc_init() {
@@ -72,8 +73,8 @@ void servo_init() {
     TIMSK1 = 0;
     OCR1AH = (3000 >> 8) & 0xFF;
     OCR1AL = 3000 & 0xFF;
-    OCR1BH = (3000 >> 8) & 0xFF;
-    OCR1BL = 3000 & 0xFF;
+    OCR1BH = OCR1AH;
+    OCR1BL = OCR1AL;
 }
 
 void servo_write1(uint8_t _val) {
@@ -99,29 +100,35 @@ void servo_write2(uint8_t _val) {
 int main() {
     sei();
     io_init();
-    /* adc_init(); */
-    /* servo_init(); */
-    stdout = &mystdout;
+    adc_init();
+    servo_init();
+    stdout = &stdout_oled;
     usart_init();
     i2c_init();
     oled_init();
     _delay_ms(200);
     oled_clear();
-    oled_pos(7, 3);
-    oled_putc('c');
-    oled_putc('u');
-    oled_putc('l');
-    oled_putc('a');
-    oled_putc('t');
-    oled_putc('e');
-    oled_putc('r');
-    while (1);
-    /* for (;;) { */
-    /*     ADMUX = (ADMUX & 0xF0) | 0x01; */
-    /*     uint16_t x = adc_read(); */
-    /*     ADMUX = (ADMUX & 0xF0) | 0x00; */
-    /*     uint16_t y = adc_read(); */
-    /*     /1* printf("x: %hu, y: %hu\n", x, y); *1/ */
-    /*     _delay_ms(200); */
-    /* } */
+    oled_pos(0, 0);
+    printf(__DATE__);
+    oled_pos(0, 1);
+    printf(__TIME__);
+    for (;;) {
+        ADMUX = (ADMUX & 0xF0) | 0x01;
+        uint16_t x = adc_read();
+        ADMUX = (ADMUX & 0xF0) | 0x00;
+        uint16_t y = adc_read();
+        uint8_t btn1 = PIND & _BV(PIND3) ? 1 : 0;
+        uint8_t btn2 = PIND & _BV(PIND2) ? 1 : 0;
+        servo_write1((uint32_t) x * 180 / 1024);
+        servo_write2((uint32_t) y * 180 / 1024);
+        oled_clear();
+        oled_pos(0, 2);
+        printf("X: %u", x);
+        oled_pos(0, 3);
+        printf("Y: %u", y);
+        oled_pos(0, 4);
+        printf("btn1: %u", btn1);
+        oled_pos(0, 5);
+        printf("btn2: %u", btn2);
+    }
 }

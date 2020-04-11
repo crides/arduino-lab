@@ -76,13 +76,13 @@ void oled_putc(unsigned char c) {
 }
 
 void oled_clear() {
+    oled_pos(0, 0);
+    oled_prepare();
+    oled_push_byte(OLED_DATA);
+    for (uint8_t x = 0; x < 128; x ++) {
+        oled_push_byte(0);
+    }
     for (uint8_t y = 0; y < 8; y ++) {
-        oled_pos(0, y);
-        oled_prepare();
-        oled_push_byte(OLED_DATA);
-        for (uint8_t x = 0; x < 128; x ++) {
-            oled_push_byte(0);
-        }
         oled_send();
     }
 }
