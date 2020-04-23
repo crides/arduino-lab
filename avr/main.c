@@ -40,6 +40,27 @@ static int _oled_putc(char c, FILE *f) {
     return 0;
 }
 
+void t0_init() {
+    TCCR0B = 0x05;  // Prescaler = 1/1024
+    TIMSK0 = 0x01;  // Enable interrupt
+}
+
+ISR(TIMER0_OVF_vect) {
+    static uint8_t counter = 0, led = 0;
+    TIFR0 = 0;
+    counter ++;
+    if (counter >= (F_CPU / 10 * 3 / 1024 / 256)) {     // 300ms period
+        counter = 0;
+        led ++;
+        if (led == 5) {
+            led = 0;
+        }
+        uint8_t bits = 1 << led;
+        PORTD = (bits & 0x10) | (bits & 0x08) << 2 | (bits & 0x04) << 4 | (bits & 0x02) << 6;
+        PORTB = bits & 0x01;
+    }
+}
+
 void io_init() {
     DDRD = _BV(DDD4) | _BV(DDD5) | _BV(DDD6) | _BV(DDD7);
     DDRB = _BV(DDB0) | _BV(DDB1) | _BV(DDB2);
@@ -100,6 +121,7 @@ void servo_write2(uint8_t _val) {
 int main() {
     sei();
     io_init();
+    t0_init();
     adc_init();
     servo_init();
     stdout = &stdout_oled;
@@ -112,6 +134,7 @@ int main() {
     printf(__DATE__);
     oled_pos(0, 1);
     printf(__TIME__);
+
     for (;;) {
         ADMUX = (ADMUX & 0xF0) | 0x01;
         uint16_t x = adc_read();
