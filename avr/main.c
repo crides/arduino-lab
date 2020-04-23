@@ -119,8 +119,8 @@ void servo_write2(uint8_t _val) {
 }
 
 int main() {
-    sei();
     io_init();
+    sei();
     t0_init();
     adc_init();
     servo_init();
@@ -136,6 +136,7 @@ int main() {
     printf(__TIME__);
 
     for (;;) {
+        PORTD |= _BV(PORTD2) | _BV(PORTD3);
         ADMUX = (ADMUX & 0xF0) | 0x01;
         uint16_t x = adc_read();
         ADMUX = (ADMUX & 0xF0) | 0x00;
